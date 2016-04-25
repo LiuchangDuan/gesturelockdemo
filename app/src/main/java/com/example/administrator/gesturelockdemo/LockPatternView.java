@@ -155,7 +155,17 @@ public class LockPatternView extends View {
 
         // 5.图片资源的半径
         bitmapRadius = pointNormal.getHeight() / 2;
-        // 6.初始化完成
+
+        // 6.设置密码
+        int index  = 1;
+        for (Point[] points : this.points) {
+            for (Point point : points) {
+                point.index = index;
+                index++;
+            }
+        }
+
+        // 7.初始化完成
         isInit = true;
 
     }
