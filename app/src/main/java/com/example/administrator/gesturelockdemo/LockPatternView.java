@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,6 +37,9 @@ public class LockPatternView extends View {
     private Bitmap pointNormal, pointPressed, pointError, linePressed, lineError;
     // 按下的点集合
     private List<Point> pointList = new ArrayList<Point>();
+
+    // 监听器
+    private OnPatternChangedListener onPatternChangedListener;
 
     public LockPatternView(Context context) {
         super(context);
@@ -179,6 +183,11 @@ public class LockPatternView extends View {
         Point point = null;
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                // 重新绘制
+                if (onPatternChangedListener != null) {
+                    onPatternChangedListener.onPatternStart((true));
+                }
+
                 resetPoint();
                 point = checkSelectPoint();
                 if (point != null) {
@@ -218,6 +227,24 @@ public class LockPatternView extends View {
             // 绘制错误
             } else if (pointList.size() < POINT_SIZE && pointList.size() > 1) {
                 errorPoint();
+                if (onPatternChangedListener != null) {
+//                    String passwordStr = "";
+//                    for (int i = 0; i < pointList.size(); i++) {
+//                        passwordStr = passwordStr + pointList.get(i).index;
+//                    }
+                    onPatternChangedListener.onPatternChanged(null);
+                }
+            // 绘制成功
+            } else {
+                if (onPatternChangedListener != null) {
+                    String passwordStr = "";
+                    for (int i = 0; i < pointList.size(); i++) {
+                        passwordStr = passwordStr + pointList.get(i).index;
+                    }
+                    if (!TextUtils.isEmpty(passwordStr)) {
+                        onPatternChangedListener.onPatternChanged(passwordStr);
+                    }
+                }
             }
         }
         // 刷新View
@@ -378,8 +405,33 @@ public class LockPatternView extends View {
             // 开方
             return Math.sqrt((pointX - movingX) * (pointX - movingX) + (pointY - movingY) * (pointY - movingY)) < r;
         }
+    }
 
+    /**
+     * 图案监听器
+     */
+    public static interface OnPatternChangedListener {
+        /**
+         * 图案改变
+         * @param passwordStr 图案密码
+         */
+        void onPatternChanged(String passwordStr);
 
+        /**
+         * 图案重新绘制
+         * @param isStart 是否重新绘制
+         */
+        void onPatternStart(boolean isStart);
+    }
+
+    /**
+     *  设置图案的监听器
+     * @param onPatternChangedListener
+     */
+    public void setOnPatternChangedListener(OnPatternChangedListener onPatternChangedListener) {
+        if (onPatternChangedListener != null) {
+            this.onPatternChangedListener = onPatternChangedListener;
+        }
     }
 
 }
