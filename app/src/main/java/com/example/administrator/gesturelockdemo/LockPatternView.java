@@ -101,6 +101,8 @@ public class LockPatternView extends View {
         // 线的长度
 //        double lineLength = Point.distance(a, b);
         float lineLength = (float) Point.distance(a, b);
+        float degrees = getDegrees(a, b);
+        canvas.rotate(degrees, a.x, a.y);
         if (a.state == Point.STATE_PRESSED) {
             matrix.setScale(lineLength / linePressed.getWidth(), 1);
             matrix.postTranslate(a.x - linePressed.getWidth() / 2, a.y - linePressed.getHeight() / 2);
@@ -110,6 +112,7 @@ public class LockPatternView extends View {
             matrix.postTranslate(a.x - lineError.getWidth() / 2, a.y - lineError.getHeight() / 2);
             canvas.drawBitmap(lineError, matrix, paint);
         }
+        canvas.rotate(-degrees, a.x, a.y);
     }
 
     /**
@@ -140,7 +143,7 @@ public class LockPatternView extends View {
         // 4.点的坐标
         points[0][0] = new Point(offsetsX + width / 4, offsetsY + width / 4);
         points[0][1] = new Point(offsetsX + width / 2, offsetsY + width / 4);
-        points[0][2] = new Point(offsetsX + width - width / 4, offsetsY + width - width / 4);
+        points[0][2] = new Point(offsetsX + width - width / 4, offsetsY + width / 4);
 
         points[1][0] = new Point(offsetsX + width / 4, offsetsY + width / 2);
         points[1][1] = new Point(offsetsX + width / 2, offsetsY + width / 2);
@@ -152,17 +155,18 @@ public class LockPatternView extends View {
 
         // 5.图片资源的半径
         bitmapRadius = pointNormal.getHeight() / 2;
+        // 6.初始化完成
+        isInit = true;
 
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         movingNoPoint = false;
+        isFinish = false;
         movingX = event.getX();
         movingY = event.getY();
-
         Point point = null;
-
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 resetPoint();
@@ -183,7 +187,6 @@ public class LockPatternView extends View {
                 isFinish = true;
                 isSelect = false;
                 break;
-
         }
         // 选中重复检查
         if (!isFinish && isSelect && point != null) {
@@ -203,7 +206,7 @@ public class LockPatternView extends View {
             if (pointList.size() == 1) {
                 resetPoint();
             // 绘制错误
-            } else if (pointList.size() < POINT_SIZE && pointList.size() > 2) {
+            } else if (pointList.size() < POINT_SIZE && pointList.size() > 1) {
                 errorPoint();
             }
         }
@@ -229,6 +232,10 @@ public class LockPatternView extends View {
      * 设置绘制不成立
      */
     public void resetPoint() {
+        for (int i = 0; i < pointList.size(); i++) {
+            Point point = pointList.get(i);
+            point.state = Point.STATE_NORMAL;
+        }
         pointList.clear();
     }
 
@@ -255,8 +262,67 @@ public class LockPatternView extends View {
                 }
             }
         }
-
         return null;
+    }
+
+    public float getDegrees(Point a, Point b) {
+        float ax = a.x;
+        float ay = a.y;
+        float bx = b.x;
+        float by = b.y;
+        float degrees = 0;
+
+        // y轴相等 90度或270
+        if (bx == ax) {
+            // 在y轴的下边 90
+            if (by > ay) {
+                degrees = 90;
+            // 在y轴的上边 270
+            } else if (by < ay) {
+                degrees = 270;
+            }
+        // y轴相等 0度或180
+        } else if (by == ay) {
+            // 在y轴的下边 90
+            if (bx > ax) {
+                degrees = 0;
+            // 在y轴的上边 270
+            } else if (bx < ax) {
+                degrees = 180;
+            }
+        } else {
+            // 在y轴的右边 270~90
+            if (bx > ax) {
+                // 在y轴的下边 0~90
+                if (by > ay) {
+                    degrees = 0;
+                    degrees = degrees + switchDegrees(Math.abs(by - ay), Math.abs(bx - ax));
+//                    degrees = degrees + switchDegrees(Math.abs(bx - ax), Math.abs(by - ay));
+                // 在y轴的上边 270~0
+                } else if (by < ay) {
+                    degrees = 360;
+                    degrees = degrees - switchDegrees(Math.abs(by - ay), Math.abs(bx - ax));
+//                    degrees = degrees - switchDegrees(Math.abs(bx - ax), Math.abs(by - ay));
+                }
+            // 在y轴的左边 90~270
+            } else if (bx < ax) {
+                // 在y轴的下边 180~270
+                if (by > ay) {
+                    degrees = 90;
+                    degrees = degrees + switchDegrees(Math.abs(bx - ax), Math.abs(by - ay));
+                // 在y轴的上边 90~180
+                } else if (by < ay) {
+                    degrees = 270;
+                    degrees = degrees - switchDegrees(Math.abs(bx - ax), Math.abs(by - ay));
+                }
+            }
+        }
+        return degrees;
+    }
+
+    private float switchDegrees(float x, float y) {
+        // 弧度转化为角度
+        return (float) Math.toDegrees(Math.atan2(x, y));
     }
 
     /**
