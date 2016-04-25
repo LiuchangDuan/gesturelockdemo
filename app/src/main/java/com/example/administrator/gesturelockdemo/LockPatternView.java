@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -19,13 +20,16 @@ public class LockPatternView extends View {
     // 选中点的数量
     private static final int POINT_SIZE = 5;
 
+    // 矩阵
+    private Matrix matrix = new Matrix();
+
     // 画笔
     private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // 9个点
     private Point[][] points = new Point[3][3];
 
-    private boolean isInit, isSelect, isFinish;
+    private boolean isInit, isSelect, isFinish, movingNoPoint;
 
     private float width, height, offsetsX, offsetsY, bitmapRadius, movingX, movingY;
 
@@ -50,7 +54,22 @@ public class LockPatternView extends View {
         if (!isInit) {
             initPoints();
         }
+        // 画点
         points2Canvas(canvas);
+        // 画线
+        if (pointList.size() > 0) {
+            Point a = pointList.get(0);
+            // 绘制九宫格里的坐标点
+            for (int i = 0; i < pointList.size(); i++) {
+                Point b = pointList.get(i);
+                line2Canvas(canvas, a, b);
+                a = b;
+            }
+            // 绘制鼠标坐标点
+            if (movingNoPoint) {
+                line2Canvas(canvas, a, new Point(movingX, movingY));
+            }
+        }
     }
 
     /**
@@ -69,6 +88,27 @@ public class LockPatternView extends View {
                     canvas.drawBitmap(pointNormal, point.x - bitmapRadius, point.y - bitmapRadius, paint);
                 }
             }
+        }
+    }
+
+    /**
+     * 画线
+     * @param canvas 画布
+     * @param a 第一个点
+     * @param b 第二个点
+     */
+    private void line2Canvas(Canvas canvas, Point a, Point b) {
+        // 线的长度
+//        double lineLength = Point.distance(a, b);
+        float lineLength = (float) Point.distance(a, b);
+        if (a.state == Point.STATE_PRESSED) {
+            matrix.setScale(lineLength / linePressed.getWidth(), 1);
+            matrix.postTranslate(a.x - linePressed.getWidth() / 2, a.y - linePressed.getHeight() / 2);
+            canvas.drawBitmap(linePressed, matrix, paint);
+        } else {
+            matrix.setScale(lineLength / lineError.getWidth(), 1);
+            matrix.postTranslate(a.x - lineError.getWidth() / 2, a.y - lineError.getHeight() / 2);
+            canvas.drawBitmap(lineError, matrix, paint);
         }
     }
 
@@ -117,6 +157,7 @@ public class LockPatternView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        movingNoPoint = false;
         movingX = event.getX();
         movingY = event.getY();
 
@@ -133,6 +174,9 @@ public class LockPatternView extends View {
             case MotionEvent.ACTION_MOVE:
                 if (isSelect) {
                     point = checkSelectPoint();
+                    if (point == null) {
+                        movingNoPoint = true;
+                    }
                 }
                 break;
             case MotionEvent.ACTION_UP:
@@ -143,6 +187,14 @@ public class LockPatternView extends View {
         }
         // 选中重复检查
         if (!isFinish && isSelect && point != null) {
+            // 交叉点
+            if (crossPoint(point)) {
+                movingNoPoint = true;
+            // 新点
+            } else {
+                point.state = Point.STATE_PRESSED;
+                pointList.add(point);
+            }
 
         }
         // 绘制结束
@@ -158,6 +210,19 @@ public class LockPatternView extends View {
         // 刷新View
         postInvalidate();
         return true;
+    }
+
+    /**
+     * 交叉点
+     * @param point 点
+     * @return 是否交叉
+     */
+    private boolean crossPoint(Point point) {
+        if (pointList.contains(point)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
