@@ -6,23 +6,32 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Administrator on 2016/4/24.
  */
 public class LockPatternView extends View {
+    // 选中点的数量
+    private static final int POINT_SIZE = 5;
+
     // 画笔
     private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // 9个点
     private Point[][] points = new Point[3][3];
 
-    private boolean isInit;
+    private boolean isInit, isSelect, isFinish;
 
-    private float width, height, offsetsX, offsetsY, bitmapRadius;
+    private float width, height, offsetsX, offsetsY, bitmapRadius, movingX, movingY;
 
     private Bitmap pointNormal, pointPressed, pointError, linePressed, lineError;
+    // 按下的点集合
+    private List<Point> pointList = new ArrayList<Point>();
 
     public LockPatternView(Context context) {
         super(context);
@@ -106,6 +115,85 @@ public class LockPatternView extends View {
 
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        movingX = event.getX();
+        movingY = event.getY();
+
+        Point point = null;
+
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                resetPoint();
+                point = checkSelectPoint();
+                if (point != null) {
+                    isSelect = true;
+                }
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if (isSelect) {
+                    point = checkSelectPoint();
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                isFinish = true;
+                isSelect = false;
+                break;
+
+        }
+        // 选中重复检查
+        if (!isFinish && isSelect && point != null) {
+
+        }
+        // 绘制结束
+        if (isFinish) {
+            // 只有一个点，绘制不成立
+            if (pointList.size() == 1) {
+                resetPoint();
+            // 绘制错误
+            } else if (pointList.size() < POINT_SIZE && pointList.size() > 2) {
+                errorPoint();
+            }
+        }
+        // 刷新View
+        postInvalidate();
+        return true;
+    }
+
+    /**
+     * 设置绘制不成立
+     */
+    public void resetPoint() {
+        pointList.clear();
+    }
+
+    /**
+     * 设置绘制错误
+     */
+    public void errorPoint() {
+        for (Point point : pointList) {
+            point.state = Point.STATE_ERROR;
+        }
+    }
+
+    /**
+     * 检查是否选中
+     * @return
+     */
+    private Point checkSelectPoint() {
+
+        for (int i = 0; i < points.length; i++) {
+            for (int j = 0; j < points[i].length; j++) {
+                Point point = points[i][j];
+                if (Point.with(point.x, point.y, bitmapRadius, movingX, movingY)) {
+                    return point;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /**
      *  自定义的点
      */
@@ -124,6 +212,33 @@ public class LockPatternView extends View {
             this.x = x;
             this.y = y;
         }
+
+        /**
+         * 两点之间的距离
+         * @param a 点a
+         * @param b 点b
+         * @return 距离
+         */
+        public static double distance(Point a, Point b) {
+            // x轴差的平方加上y轴差的平方，然后对和开方
+            return Math.sqrt(Math.abs(a.x - b.x) * Math.abs(a.x - b.x) + Math.abs(a.y - b.y) * Math.abs(a.y - b.y));
+        }
+
+        /**
+         * 是否重合
+         * @param pointX 参考点的x
+         * @param pointY 参考点的y
+         * @param r      圆的半径
+         * @param movingX 移动点的x
+         * @param movingY 移动点的y
+         * @return 是否重合
+         */
+        public static boolean with(float pointX, float pointY, float r, float movingX, float movingY) {
+            // 开方
+            return Math.sqrt((pointX - movingX) * (pointX - movingX) + (pointY - movingY) * (pointY - movingY)) < r;
+        }
+
+
     }
 
 }
